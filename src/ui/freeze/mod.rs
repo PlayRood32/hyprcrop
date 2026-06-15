@@ -60,9 +60,8 @@ pub fn run_freeze(cfg: &Config) -> Result<PathBuf> {
             Vec::new()
         });
 
-    // Border expansion is irrelevant when toplevel-export is used (the protocol
-    // captures the raw window surface, no compositor decorations). Suppress it here
-    // rather than mutating the global config flag, so non-freeze commands are unaffected.
+    // Fetch the border style if configured, so that if toplevel-export fails,
+    // the fallback screencopy crop can correctly include the window borders.
     let border_style = if cfg.capture_window_border {
         hyprland::get_border_style()
     } else {

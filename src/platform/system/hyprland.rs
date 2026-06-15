@@ -4,7 +4,6 @@ use std::io::{Read, Write};
 use std::net::Shutdown;
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
-use std::time::Duration;
 
 use crate::domain::error::{AppError, Result};
 use crate::domain::types::{BorderStyle, LayerSurface, MonitorInfo, ScreenRect, WindowInfo};
@@ -85,6 +84,11 @@ pub fn hyprland_ipc_raw(cmd: &str) -> Result<Vec<u8>> {
 
         if let Err(e) = write!(stream, "j/{}", cmd) {
             last_err = Some(("writing to socket".into(), e));
+            continue;
+        }
+
+        if let Err(e) = stream.shutdown(Shutdown::Write) {
+            last_err = Some(("shutting down write side".into(), e));
             continue;
         }
 
