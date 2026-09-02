@@ -5,6 +5,16 @@
 A fast, Hyprland-native screenshot tool written in Rust.
 HyprCrop is not a wrapper of grim; it captures the screen directly via wayland APIs!
 
+## Roadmap
+
+After the v0.5.6 release, the following features are planned:
+
+- [ ] Delete `portal` subcommand.
+- [ ] Add a `window <address>` subcommand to capture a specific window by its address (e.g., `hyprcrop window 0x123456`).
+
+These updates will remove the need for heavy dependencies such as `tokio`, resulting in faster build times.
+After these changes, I will release as v1.0.0, marking the first stable release of HyprCrop!
+
 ## Features
 
 - **Immediate capture** — crop region, active window, focused monitor, or all monitors
@@ -137,6 +147,11 @@ hyprcrop --config ~/my-config.toml generate-config
 
 ### Example configs
 
+> [!WARNING]
+> `freeze_window_use_toplevel_export` has been renamed to `window_use_toplevel_export`.
+> If you have an existing config with the old key, you will be warned about deprecated keys when the config is loaded.
+> Update your config by replacing `freeze_window_use_toplevel_export` with `window_use_toplevel_export` to remove the warning.
+
 <details>
 
 <summary>Example Config with Descriptions</summary>
@@ -161,11 +176,12 @@ toolbar_position = "top"
 # Default: false
 capture_window_border = false
 
-# When `true`, freeze-mode window capture uses `hyprland-toplevel-export-v1` to
-# directly capture the window surface instead of cropping from the frozen monitor
-# image. Incompatible with `capture_window_border`; that option is forced `false` when this is enabled.
+# When `true`, freeze-mode window capture and `hyprcrop window` capture
+# use `hyprland-toplevel-export-v1` to directly capture
+# the window surface instead of cropping from the frozen monitor image.
+# `capture_window_border` has no effect when toplevel export succeeds.
 # Default: false
-freeze_window_use_toplevel_export = false
+window_use_toplevel_export = false
 
 # Glyphs shown in the freeze mode toolbar.
 # Requires a Nerd Font. Override individual icons as needed.
@@ -204,7 +220,7 @@ error_body       = "{error}"
 # Every key is optional; omitted keys fall back to the built-in defaults shown below.
 
 [freeze_colors.overlay]
-background = "#00000059"     # dim over frozen screen
+background = "#00000059"  # dim over frozen screen
 
 [freeze_colors.toolbar]
 background = "#141414D9"  # toolbar pill background
@@ -228,7 +244,7 @@ fill_idle      = "#4585FF33"
 fill_hovered   = "#4585FF8C"
 stroke_idle    = "#4D99FFB3"
 stroke_hovered = "#4D99FFFF"
-label_text     = "#FFFFFFFF"
+label_text     = "#FFFFFFFF"  # "window title" label
 hint_text      = "#CCE6FFE6"  # "Click to capture"
 
 [freeze_colors.monitor_frame]
@@ -236,7 +252,7 @@ fill_idle      = "#4585FF14"
 fill_hovered   = "#4585FF66"
 stroke_idle    = "#4D99FF59"
 stroke_hovered = "#4D99FFFF"
-label_text     = "#FFFFFFFF"
+label_text     = "#FFFFFFFF"  # "monitor name" label eg, "DP-1"
 hint_text      = "#CCE6FFE6"  # "Click to capture"
 name_text_idle = "#FFFFFF80"  # monitor name when not hovered
 
@@ -266,7 +282,7 @@ save_path = "~/Pictures/Screenshots"
 filename_pattern = "grim-%Y-%m-%d_%H%M_%S"
 toolbar_position = "top"
 capture_window_border = false
-freeze_window_use_toplevel_export = true
+window_use_toplevel_export = true
 
 [freeze_glyphs]
 crop = "󰆟"

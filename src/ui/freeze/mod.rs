@@ -28,6 +28,7 @@ use std::{
 };
 
 use crate::domain::config::Config;
+use crate::domain::constants::FREEZE_LAYER_NAMESPACE;
 use crate::domain::error::{AppError, Result};
 use crate::domain::types::{BorderStyle, ScreenRect};
 use crate::platform::capture::screencopy;
@@ -118,7 +119,7 @@ pub fn run_freeze(cfg: &Config) -> Result<PathBuf> {
                     exclusive_zone: Some(-1),
                     keyboard_interactivity: KeyboardInteractivity::Exclusive,
                     output_option: OutputOption::OutputName(m.name.clone()),
-                    namespace: Some("hyprcrop-freeze".to_string()),
+                    namespace: Some(FREEZE_LAYER_NAMESPACE.to_owned()),
                     ..Default::default()
                 };
                 (id, settings)
@@ -164,7 +165,7 @@ pub fn run_freeze(cfg: &Config) -> Result<PathBuf> {
                 });
                 (state, Task::batch(spawn_tasks))
             },
-            "hyprcrop-freeze",
+            FREEZE_LAYER_NAMESPACE,
             app_update,
             app_view,
         )
@@ -208,13 +209,23 @@ pub fn run_freeze(cfg: &Config) -> Result<PathBuf> {
             Ok(out_path)
         }
         Some(Some(FreezeSelection::ToplevelWindow(window))) => {
-            // Try toplevel-export first — captures the raw window buffer without
-            // overlapping windows. Fall back to cropping the frozen screenshot.
-            if let Err(e) = toplevel_export::capture_toplevel_to_path(&window, &out_path) {
-                eprintln!(
-                    "[hyprcrop] toplevel export failed ({}), falling back to screencopy crop",
-                    e
-                );
+            let mut captured = false;
+
+            if cfg.window_use_toplevel_export {
+                // Try toplevel-export first — captures the raw window buffer without
+                // overlapping windows.
+                if let Err(e) = toplevel_export::capture_toplevel_to_path(&window, &out_path) {
+                    eprintln!(
+                        "[hyprcrop] toplevel export failed ({}), falling back to screencopy crop",
+                        e
+                    );
+                } else {
+                    captured = true;
+                }
+            }
+
+            if !captured {
+                // Fall back to cropping the frozen screenshot.
                 let adjusted = ScreenRect {
                     x: window.rect.x - min_x,
                     y: window.rect.y - min_y,

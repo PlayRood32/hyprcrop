@@ -1,10 +1,10 @@
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::io::{Read, Write};
-use std::net::Shutdown;
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 
+use crate::domain::constants::FREEZE_LAYER_NAMESPACE;
 use crate::domain::error::{AppError, Result};
 use crate::domain::types::{BorderStyle, LayerSurface, MonitorInfo, ScreenRect, WindowInfo};
 
@@ -105,10 +105,7 @@ pub fn hyprland_ipc_raw(cmd: &str) -> Result<Vec<u8>> {
     let (ctx, err) = last_err.unwrap_or_else(|| {
         (
             "unknown socket error".into(),
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "IPC loop terminated without errors",
-            ),
+            std::io::Error::other("IPC loop terminated without errors"),
         )
     });
     Err(AppError::HyprlandIpc(format!("{}: {}", cmd, ctx), err))
@@ -186,6 +183,7 @@ pub(crate) fn parse_overlay_layers(
                 .into_iter()
                 .filter(|(level, _)| level == OVERLAY_LEVEL)
                 .flat_map(|(_, surfaces)| surfaces)
+                .filter(|s| s.namespace != FREEZE_LAYER_NAMESPACE)
                 .map(|s| LayerSurface {
                     rect: ScreenRect {
                         x: s.x,
@@ -308,7 +306,9 @@ mod tests {
             "DP-2": {
                 "levels": {
                     "0": [{"x":0,"y":1050,"w":1920,"h":30,"namespace":"waybar-bottom"}],
-                    "3": [{"x":0,"y":0,"w":1920,"h":30,"namespace":"waybar"}]
+                    "3": [
+                        {"x":0,"y":0,"w":1920,"h":30,"namespace":"waybar"}
+                    ]
                 }
             },
             "DP-1": {
@@ -332,6 +332,31 @@ mod tests {
         assert_eq!(surfaces[1].namespace, "waybar");
         assert_eq!(surfaces[1].rect.x, 1920);
         assert_eq!(surfaces[1].rect.w, 2560);
+    }
+
+    #[test]
+    fn test_overlay_layer_parsing_with_freeze_layer() {
+        let json = format!(
+            r#"{{
+            "DP-1": {{
+                "levels": {{
+                    "3": [
+                        {{"x":0,"y":0,"w":1920,"h":40,"namespace":"waybar"}},
+                        {{"x":0,"y":40,"w":1920,"h":40,"namespace":"{}"}}
+                    ]
+                }}
+            }}
+        }}"#,
+            FREEZE_LAYER_NAMESPACE
+        );
+        let monitors: HashMap<String, HyprLayerMonitor> = serde_json::from_str(&json).unwrap();
+        let surfaces = parse_overlay_layers(monitors);
+
+        // hyprcrop-freeze surface must be filtered out
+        assert_eq!(surfaces.len(), 1);
+        assert_eq!(surfaces[0].namespace, "waybar");
+        assert_eq!(surfaces[0].rect.x, 0);
+        assert_eq!(surfaces[0].rect.w, 1920);
     }
 
     #[test]
